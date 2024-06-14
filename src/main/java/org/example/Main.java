@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.dto.Address;
 import org.example.dto.User;
+import org.example.dto.UserRecord;
 
 public class Main {
     private static final RandomObjectGenerator randomObjectGenerator = new RandomObjectGenerator();
@@ -17,5 +18,8 @@ public class Main {
         user.setName("Soup");
         randomObjectGenerator.fillExistingObject(user);
         System.out.println("Filled user: " + user);
+
+        UserRecord userRecord = randomObjectGenerator.fillNewObject(UserRecord.class);
+        System.out.println("Filled userRecord: " + userRecord);
     }
 }
