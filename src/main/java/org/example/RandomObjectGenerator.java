@@ -43,7 +43,7 @@ public class RandomObjectGenerator {
         generators.put(Character.class, () -> (char) random.nextInt(26)+'a');
     }
 
-    public <T> T generate(Class<T> clazz) {
+    public <T> T fillNewObject(Class<T> clazz) {
         try {
             T instance = clazz.getDeclaredConstructor().newInstance();
             fillObject(instance, false);
@@ -54,7 +54,7 @@ public class RandomObjectGenerator {
         }
     }
 
-    public <T> void fill(T object) {
+    public <T> void fillExistingObject(T object) {
         fillObject(object, true);
     }
 
@@ -80,7 +80,7 @@ public class RandomObjectGenerator {
             return generator.get();
         else{
             try{
-                return generate(type);
+                return fillNewObject(type);
             }
             catch (Exception e) {
                 throw new RuntimeException("Failed to generate random value for field: " + field.getName(), e);
