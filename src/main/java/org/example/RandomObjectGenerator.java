@@ -1,9 +1,9 @@
 package org.example;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.lang.reflect.RecordComponent;
+import java.util.*;
 import java.util.function.Supplier;
 
 public class RandomObjectGenerator {
@@ -21,9 +21,9 @@ public class RandomObjectGenerator {
         int rightLimit = 122; // letter 'z'
         int targetStringLength = 10;
         generators.put(String.class, () -> random
-                .ints(leftLimit,rightLimit+1)
+                .ints(leftLimit, rightLimit + 1)
                 .limit(targetStringLength)
-                .collect(StringBuilder::new,StringBuilder::appendCodePoint,StringBuilder::append)
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                 .toString());
         generators.put(int.class, random::nextInt);
         generators.put(Integer.class, random::nextInt);
@@ -39,17 +39,20 @@ public class RandomObjectGenerator {
         generators.put(Short.class, () -> (short) random.nextInt(Short.MAX_VALUE + 1));
         generators.put(byte.class, () -> (byte) random.nextInt(Byte.MAX_VALUE + 1));
         generators.put(Byte.class, () -> (byte) random.nextInt(Short.MAX_VALUE + 1));
-        generators.put(char.class, () -> (char) random.nextInt(26)+'a');
-        generators.put(Character.class, () -> (char) random.nextInt(26)+'a');
+        generators.put(char.class, () -> (char) random.nextInt(26) + 'a');
+        generators.put(Character.class, () -> (char) random.nextInt(26) + 'a');
     }
 
     public <T> T fillNewObject(Class<T> clazz) {
         try {
-            T instance = clazz.getDeclaredConstructor().newInstance();
-            fillObject(instance, false);
-            return instance;
-        }
-        catch (Exception e) {
+            if (clazz.isRecord()) {
+                return fillNewRecord(clazz);
+            } else {
+                T instance = clazz.getDeclaredConstructor().newInstance();
+                fillObject(instance, false);
+                return instance;
+            }
+        } catch (Exception e) {
             throw new RuntimeException("Failed to create new instance of " + clazz.getName(), e);
         }
     }
@@ -58,14 +61,14 @@ public class RandomObjectGenerator {
         fillObject(object, true);
     }
 
-    private <T> void fillObject(T object, Boolean fillOnlyNulls){
+    private <T> void fillObject(T object, Boolean fillOnlyNulls) {
         Class<?> clazz = object.getClass();
         for (Field field : clazz.getDeclaredFields()) {
             field.setAccessible(true);
             try {
-                if(fillOnlyNulls && field.get(object) != null)
+                if (fillOnlyNulls && field.get(object) != null)
                     continue;
-                Object value = generateRandomValueForField(field);
+                Object value = generateRandomValue(field.getType());
                 field.set(object, value);
             } catch (IllegalAccessException e) {
                 throw new RuntimeException("Failed to set field value", e);
@@ -73,17 +76,32 @@ public class RandomObjectGenerator {
         }
     }
 
-    private Object generateRandomValueForField(Field field) {
-        Class<?> type = field.getType();
+    private <T> T fillNewRecord(Class<T> clazz) {
+        try {
+
+            RecordComponent[] components = clazz.getRecordComponents();
+            Object[] values = new Object[components.length];
+            for (int i = 0; i < components.length; i++)
+                values[i] = generateRandomValue(components[i].getType());
+            Constructor<T> constructor = clazz.getDeclaredConstructor(Arrays.stream(components)
+                    .map(RecordComponent::getType)
+                    .toArray(Class<?>[]::new));
+            return constructor.newInstance(values);
+        }
+        catch (Exception e){
+            throw new RuntimeException("Failed to create new record instance of " + clazz.getName(), e);
+        }
+    }
+
+    private Object generateRandomValue(Class<?> type) {
         Supplier<?> generator = generators.get(type);
-        if(generator != null)
+        if (generator != null)
             return generator.get();
-        else{
-            try{
+        else {
+            try {
                 return fillNewObject(type);
-            }
-            catch (Exception e) {
-                throw new RuntimeException("Failed to generate random value for field: " + field.getName(), e);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to generate random value of: " + type, e);
             }
         }
     }
